@@ -191,7 +191,7 @@ pub struct ServerInfo {
     /// The version of golang the NATS server was built with.
     #[serde(default)]
     pub go: String,
-    /// The nonce used for nkeys.
+    /// The nonce used for NKeys.
     #[serde(default)]
     pub nonce: String,
     /// A list of server urls that a client can connect to.
@@ -936,7 +936,7 @@ impl std::fmt::Display for ServerError {
 /// Info to construct a CONNECT message.
 #[derive(Clone, Debug, Serialize)]
 pub struct ConnectInfo {
-    /// Turns on +OK protocol acknowledgements.
+    /// Turns on +OK protocol acknowledgments.
     pub verbose: bool,
 
     /// Turns on additional strict format checking, e.g. for properly formed
@@ -947,7 +947,7 @@ pub struct ConnectInfo {
     #[serde(rename = "jwt")]
     pub user_jwt: Option<String>,
 
-    /// Public nkey.
+    /// Public NKey.
     pub nkey: Option<String>,
 
     /// Signed nonce, encoded to Base64URL.
@@ -1158,7 +1158,7 @@ pub(crate) enum Authorization {
     /// Authenticate using a username and password.
     UserAndPassword(String, String),
 
-    /// Authenticate using nkey seed
+    /// Authenticate using NKey seed
     NKey(String),
 
     /// Authenticate using a jwt and signing function.
