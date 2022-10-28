@@ -150,6 +150,7 @@ impl Client {
     /// # async fn main() -> Result<(), async_nats::Error> {
     /// let client = async_nats::connect("demo.nats.io").await?;
     /// client.publish("events.data".into(), "payload".into()).await?;
+    /// client.flush().await?;
     /// # Ok(())
     /// # }
     /// ```

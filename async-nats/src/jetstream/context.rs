@@ -82,6 +82,7 @@ impl Context {
     /// let jetstream = async_nats::jetstream::new(client);
     ///
     /// let ack = jetstream.publish("events".to_string(), "data".into()).await?;
+    /// ack.flush().await?;
     /// # Ok(())
     /// # }
     /// ```
