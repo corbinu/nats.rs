@@ -53,3 +53,27 @@ tracing-subscriber = "0.3"
 name = "core_nats"
 harness = false
 lto = true
+
+[[example]]
+name = "async-concurrent"
+path = "examples/concurrent.rs"
+
+[[example]]
+name = "async-jetstream-pull"
+path = "examples/jetstream_pull.rs"
+
+[[example]]
+name = "async-json"
+path = "examples/json.rs"
+
+[[example]]
+name = "async-multiple-subs"
+path = "examples/multiple_subs.rs"
+
+[[example]]
+name = "async-pub"
+path = "examples/pub.rs"
+
+[[example]]
+name = "async-sub"
+path = "examples/sub.rs"
