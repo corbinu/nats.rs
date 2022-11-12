@@ -555,7 +555,7 @@ mod client {
             .publish("echo".to_string(), "data".into())
             .await
             .unwrap();
-        tokio::time::timeout(Duration::from_millis(50), subscription.next())
+        tokio::time::timeout(Duration::from_millis(500), subscription.next())
             .await
             .unwrap();
 
@@ -699,7 +699,7 @@ mod client {
             .event_callback(|ev| async move {
                 println!("event: {}", ev);
             })
-            .retry_on_intial_connect()
+            .retry_on_initial_connect()
             .connect("localhost:7777")
             .await
             .unwrap();

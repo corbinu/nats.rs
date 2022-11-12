@@ -111,6 +111,7 @@ use std::slice;
 use std::str::{self, FromStr};
 use std::task::{Context, Poll};
 use tokio::io::ErrorKind;
+use tokio::time::{interval, Duration};
 use url::{Host, Url};
 
 use bytes::Bytes;
@@ -223,6 +224,7 @@ pub(crate) enum ServerOp {
         headers: Option<HeaderMap>,
         status: Option<StatusCode>,
         description: Option<String>,
+        length: usize,
     },
 }
 
@@ -312,10 +314,21 @@ impl ConnectionHandler {
 
     pub(crate) async fn process(
         &mut self,
+        ping_period: Duration,
         mut receiver: mpsc::Receiver<Command>,
     ) -> Result<(), io::Error> {
+        let mut ping_interval = interval(ping_period);
+
         loop {
             select! {
+                _ = ping_interval.tick().fuse() => {
+                    self.pending_pings += 1;
+                    if let Err(_err) = self.connection.write_op(ClientOp::Ping).await {
+                        self.handle_disconnect().await?;
+                    }
+
+                    self.connection.flush().await?;
+                },
                 maybe_command = receiver.recv().fuse() => {
                     match maybe_command {
                         Some(command) => if let Err(err) = self.handle_command(command).await {
@@ -335,7 +348,6 @@ impl ConnectionHandler {
                         Ok(None) => {
                             if let Err(err) = self.handle_disconnect().await {
                                 error!("error handling operation {}", err);
-                            } else {
                             }
                         }
                         Err(op_err) => {
@@ -377,6 +389,7 @@ impl ConnectionHandler {
                 headers,
                 status,
                 description,
+                length,
             } => {
                 if let Some(subscription) = self.subscriptions.get_mut(&sid) {
                     let message = Message {
@@ -386,6 +399,7 @@ impl ConnectionHandler {
                         headers,
                         status,
                         description,
+                        length,
                     };
 
                     // if the channel for subscription was dropped, remove the
@@ -622,7 +636,7 @@ pub async fn connect_with_options<A: ToServerAddrs>(
     addrs: A,
     options: ConnectOptions,
 ) -> Result<Client, io::Error> {
-    let ping_interval = options.ping_interval;
+    let ping_period = options.ping_interval;
     let flush_interval = options.flush_interval;
 
     let (events_tx, mut events_rx) = mpsc::channel(128);
@@ -664,18 +678,6 @@ pub async fn connect_with_options<A: ToServerAddrs>(
         options.inbox_prefix,
         options.request_timeout,
     );
-    tokio::spawn({
-        let sender = sender.clone();
-        async move {
-            loop {
-                match sender.send(Command::Ping).await {
-                    Ok(()) => {}
-                    Err(_) => return,
-                }
-                tokio::time::sleep(ping_interval).await;
-            }
-        }
-    });
 
     tokio::spawn(async move {
         loop {
@@ -701,7 +703,7 @@ pub async fn connect_with_options<A: ToServerAddrs>(
         }
         let connection = connection.unwrap();
         let mut connection_handler = ConnectionHandler::new(connection, connector, info_sender);
-        connection_handler.process(receiver).await
+        connection_handler.process(ping_period, receiver).await
     });
 
     Ok(client)
@@ -762,6 +764,7 @@ pub async fn connect<A: ToServerAddrs>(addrs: A) -> Result<Client, io::Error> {
 /// # Ok(())
 /// # }
 /// ```
+#[derive(Debug)]
 pub struct Subscriber {
     sid: u64,
     receiver: mpsc::Receiver<Message>,
@@ -818,15 +821,15 @@ impl Subscriber {
     /// # async fn main() -> Result<(), async_nats::Error> {
     /// let client = async_nats::connect("demo.nats.io").await?;
     ///
-    /// let mut sub = client.subscribe("test".into()).await?;
-    /// sub.unsubscribe_after(3).await?;
+    /// let mut subscriber = client.subscribe("test".into()).await?;
+    /// subscriber.unsubscribe_after(3).await?;
     /// client.flush().await?;
     ///
     /// for _ in 0..3 {
     ///     client.publish("test".into(), "data".into()).await?;
     /// }
     ///
-    /// while let Some(message) = sub.next().await {
+    /// while let Some(message) = subscriber.next().await {
     ///     println!("message received: {:?}", message);
     /// }
     /// println!("no more messages, unsubscribed");
